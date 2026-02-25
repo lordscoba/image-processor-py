@@ -16,3 +16,8 @@ ALLOWED_EXTENSIONS = {
 }
 
 MAX_IMAGE_PIXELS = 20_000_000
+
+MAX_DIMENSION = 8000  # Prevent massive memory abuse
+MAX_BASE64_SIZE = 15 * 1024 * 1024  # 15MB decoded protection
+# Standardized allowed output formats
+ALLOWED_OUTPUT_FORMATS = {"png": "PNG", "jpeg": "JPEG", "webp": "WEBP"}
