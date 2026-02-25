@@ -11,3 +11,18 @@ def validate_file_extension(filename: str):
     ext = filename.split(".")[-1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file type")
+    
+
+
+def validate_file_extension(filename: str, allowed_extensions=None):
+
+    if not allowed_extensions:
+        allowed_extensions = ["jpg", "jpeg", "png", "webp"]
+
+    ext = filename.split(".")[-1].lower()
+
+    if ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type .{ext} not supported."
+        )
