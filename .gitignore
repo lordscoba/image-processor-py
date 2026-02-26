@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
+*.so
 *.pyo
 *.pyd
 
@@ -32,3 +33,6 @@ build/
 # Database
 *.db
 *.sqlite3
+
+# Alembic cache
+migrations/__pycache__/

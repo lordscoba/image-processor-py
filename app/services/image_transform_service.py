@@ -26,51 +26,43 @@ def _prepare_image(file):
         raise HTTPException(status_code=500, detail="Image processing failed.")
     
 
-def resize_image_service(file, width: int, height: int, keep_aspect: bool):
+def resize_image_service(file_bytes, width: int, height: int, keep_aspect: bool):
 
-    if width > MAX_DIMENSION or height > MAX_DIMENSION:
-        raise HTTPException(status_code=400, detail="Requested dimensions too large.")
+    image = _prepare_image(io.BytesIO(file_bytes))
+    original_format = image.format if image.format else "PNG"
 
-    image = _prepare_image(file)
+    if keep_aspect:
+        image.thumbnail((width, height), Image.LANCZOS)
+    else:
+        image = image.resize((width, height), Image.LANCZOS)
 
-    try:
-        if keep_aspect:
-            # High-quality resizing
-            image.thumbnail((width, height), Image.LANCZOS)
-        else:
-            image = image.resize((width, height), Image.LANCZOS)
+    response = _stream_image(image)
 
-        return _stream_image(image)
+    metadata = {
+        "width": image.size[0],
+        "height": image.size[1],
+        "format": original_format,
+    }
 
-    except Exception as e:
-        logger.error(f"Resize error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Resize operation failed.")
+    return response, metadata
     
 
+def crop_image_service(file_bytes, left: int, top: int, right: int, bottom: int):
 
-def crop_image_service(file, left: int, top: int, right: int, bottom: int):
+    image = _prepare_image(io.BytesIO(file_bytes))
+    original_format = image.format if image.format else "PNG"
 
-    image = _prepare_image(file)
+    cropped = image.crop((left, top, right, bottom))
 
-    width, height = image.size
+    response = _stream_image(cropped)
 
-    # Validate crop box
-    if right <= left or bottom <= top:
-        raise HTTPException(status_code=400, detail="Invalid crop dimensions.")
+    metadata = {
+        "width": cropped.size[0],
+        "height": cropped.size[1],
+        "format": original_format,
+    }
 
-    if right > width or bottom > height:
-        raise HTTPException(
-            status_code=400,
-            detail="Crop box exceeds image boundaries."
-        )
-
-    try:
-        cropped = image.crop((left, top, right, bottom))
-        return _stream_image(cropped)
-
-    except Exception as e:
-        logger.error(f"Crop error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Crop operation failed.")
+    return response, metadata
     
 
 def _stream_image(image: Image.Image):
