@@ -1,0 +1,312 @@
+# 📦 Database Migrations Guide
+
+**FastAPI + SQLAlchemy (Async) + Supabase + Alembic**
+
+---
+
+## 🧠 Overview
+
+This project uses:
+
+- **FastAPI** (async application)
+- **SQLAlchemy (asyncpg)** for runtime DB access
+- **Alembic** for schema migrations (sync engine)
+- **Supabase PostgreSQL** as the database
+
+⚠️ Important:
+FastAPI uses an **async database URL**, while Alembic uses a **sync database URL**.
+
+---
+
+# 🔑 Environment Variables
+
+Your `.env` file must contain **both URLs**:
+
+```env
+# Used by FastAPI (async)
+DATABASE_URL=postgresql+asyncpg://postgres:password@db.xxxxx.supabase.co:5432/postgres?ssl=require
+
+# Used by Alembic (sync)
+SYNC_DATABASE_URL=postgresql://postgres:password@db.xxxxx.supabase.co:5432/postgres?sslmode=require
+```
+
+---
+
+# 📦 Required Dependencies
+
+Install:
+
+```bash
+pip install alembic psycopg2-binary
+```
+
+You already have:
+
+```bash
+pip install sqlalchemy asyncpg
+```
+
+---
+
+# 🏗 Migration Workflow
+
+---
+
+## 1️⃣ Create a Migration (After Changing Models)
+
+Whenever you:
+
+- Add a column
+- Remove a column
+- Modify a model
+- Add an index
+- Add a new table
+
+Run:
+
+```bash
+alembic revision --autogenerate -m "describe your change"
+```
+
+Example:
+
+```bash
+alembic revision --autogenerate -m "added tracking fields to usage_logs"
+```
+
+This generates a new migration file inside:
+
+```
+migrations/versions/
+```
+
+---
+
+## 2️⃣ Apply Migration to Database
+
+```bash
+alembic upgrade head
+```
+
+This applies all pending migrations to Supabase.
+
+---
+
+## 3️⃣ Rollback (If Needed)
+
+Rollback last migration:
+
+```bash
+alembic downgrade -1
+```
+
+Rollback to specific revision:
+
+```bash
+alembic downgrade <revision_id>
+```
+
+---
+
+# 🔄 Migration Lifecycle Example
+
+### Step A – Update Model
+
+You modify:
+
+```python
+success = Column(Boolean, default=True)
+```
+
+---
+
+### Step B – Generate Migration
+
+```bash
+alembic revision --autogenerate -m "added success column"
+```
+
+---
+
+### Step C – Apply Migration
+
+```bash
+alembic upgrade head
+```
+
+---
+
+# 🧱 How Alembic Is Configured
+
+Inside `migrations/env.py`, Alembic loads:
+
+```python
+from app.models.base import Base
+target_metadata = Base.metadata
+```
+
+And overrides the DB URL:
+
+```python
+config.set_main_option(
+    "sqlalchemy.url",
+    os.getenv("SYNC_DATABASE_URL")
+)
+```
+
+This ensures:
+
+- FastAPI uses asyncpg
+- Alembic uses psycopg2
+- No driver conflicts
+
+---
+
+# ⚠️ Important Rules
+
+### ❌ `create_all()` is NOT a migration tool
+
+`Base.metadata.create_all()` only:
+
+- Creates tables if missing
+- Does NOT modify existing tables
+
+Always use Alembic for schema changes.
+
+---
+
+### ❌ Never Modify Tables Manually in Supabase
+
+If you change schema manually:
+
+- Alembic loses version tracking
+- Future migrations may fail
+
+Always modify models → generate migration → upgrade.
+
+---
+
+# 🧪 Check Migration Status
+
+See current DB revision:
+
+```bash
+alembic current
+```
+
+See migration history:
+
+```bash
+alembic history
+```
+
+---
+
+# 🚀 Production Deployment Strategy
+
+In production, before starting the app:
+
+```bash
+alembic upgrade head
+```
+
+Optional automation inside startup:
+
+```python
+import subprocess
+
+subprocess.run(["alembic", "upgrade", "head"])
+```
+
+Recommended only in controlled environments.
+
+---
+
+# 🧠 Handling PostgreSQL ENUM Changes (Important)
+
+If you modify:
+
+```python
+class ActionType(str, Enum):
+```
+
+PostgreSQL requires manual enum alteration.
+
+Alembic may not fully auto-handle enum updates.
+
+When modifying enums:
+
+1. Generate migration
+2. Review migration file carefully
+3. Possibly write custom SQL using `op.execute()`
+
+---
+
+# 📊 Current Tracked Table
+
+Example: `usage_logs`
+
+Tracks:
+
+- action type
+- endpoint
+- IP
+- success/failure
+- error message
+- processing time
+- file metadata
+- timestamps
+
+---
+
+# 🏆 Recommended Workflow
+
+1. Update model
+2. Generate migration
+3. Review generated file
+4. Apply migration
+5. Commit migration file to Git
+
+Never skip step 3.
+
+---
+
+# 📁 Folder Structure
+
+```
+app/
+  models/
+  core/
+migrations/
+  versions/
+alembic.ini
+```
+
+---
+
+# 🎯 Best Practices
+
+- Keep migrations small and focused
+- Never delete migration files that are already applied
+- Always commit migrations to version control
+- Test migrations on staging before production
+- Use direct Supabase connection (not pooler) for backend APIs
+
+---
+
+# 🧠 Summary
+
+| Component | Driver                        |
+| --------- | ----------------------------- |
+| FastAPI   | asyncpg                       |
+| Alembic   | psycopg2                      |
+| Supabase  | Direct connection (port 5432) |
+
+This separation ensures:
+
+- Async performance in app
+- Stable migrations
+- No PgBouncer prepared statement errors
+- Clean production architecture
+
+---

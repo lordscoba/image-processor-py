@@ -1,7 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Query, Request
-from app.controllers.favicon_controller import generate_favicon_controller
+from fastapi import APIRouter, UploadFile, File, Query, Request, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
 from app.core.limiter import limiter
 from app.core.config import RATE_LIMIT
+from app.controllers.favicon_controller import generate_favicon_controller
 
 router = APIRouter(prefix="/images", tags=["Favicon Generator"])
 
@@ -12,12 +14,15 @@ async def generate_favicon(
     request: Request,
     file: UploadFile = File(...),
     extension: str = Query("ico"),
-    background: str = Query("transparent"), #transparent , white , black , light , dark ,auto , contrast
-    padding: int = Query(0, ge=0, le=200)
+    background: str = Query("transparent"),
+    padding: int = Query(0, ge=0, le=200),
+    db: AsyncSession = Depends(get_db),
 ):
     return await generate_favicon_controller(
-        file,
-        extension,
-        background,
-        padding
+        file=file,
+        extension=extension,
+        background=background,
+        padding=padding,
+        request=request,
+        db=db
     )

@@ -1,209 +1,372 @@
+# 🚀 Image Processor API
+
+A production-grade, fully instrumented image processing API built with **FastAPI**, **Pillow**, and **PostgreSQL (Supabase)**.
+
+This API provides advanced image transformation, optimization, analysis, and conversion tools with full usage tracking and analytics.
+
 ---
-# 🖼️ Image Format Converter API
 
-A production-ready Image Format Converter built with **FastAPI**.
+## 🏗 Tech Stack
 
-This service allows you to upload an image and convert it to another supported format via a REST API.
+- FastAPI
+- SQLAlchemy (Async)
+- PostgreSQL (Supabase)
+- Alembic (Migrations)
+- Pillow
+- Scour (SVG Optimization)
+- SlowAPI (Rate Limiting)
+
 ---
 
-## 🚀 Features
+# 📦 Features
 
-- Convert images between multiple formats
-- File size validation
-- File type validation
+## ✅ Image Converter
+
+Convert images between formats:
+
+**Supported formats:**
+
+- JPEG
+- PNG
+- WEBP
+- BMP
+- TIFF
+- GIF
+- ICO
+
+### Endpoint
+
+```
+POST /api/v1/convert
+```
+
+### Query Params
+
+- `target_format`
+
+---
+
+## 📊 Image Analyzer
+
+Analyze image properties including:
+
+- Width / Height
+- Aspect Ratio
+- Format
+- File size
+- Brightness score
+- Contrast score
+- Color palette
+- Metadata
+- Smart optimization recommendations
+
+### Endpoint
+
+```
+POST /api/v1/analyze
+```
+
+---
+
+## ✂️ Image Cropper
+
+Crop image using coordinates.
+
+### Endpoint
+
+```
+POST /api/v1/images/crop
+```
+
+### Query Params
+
+- `left`
+- `top`
+- `right`
+- `bottom`
+
+---
+
+## 📏 Image Resizer
+
+Resize images with optional aspect ratio preservation.
+
+### Endpoint
+
+```
+POST /api/v1/images/resize
+```
+
+### Query Params
+
+- `width`
+- `height`
+- `keep_aspect` (default: true)
+
+---
+
+## 🔄 Image → Base64
+
+Convert image file into Base64 string.
+
+### Endpoint
+
+```
+POST /api/v1/images/to-base64
+```
+
+---
+
+## 🔁 Base64 → Image
+
+Convert Base64 string back to downloadable image.
+
+### Endpoint
+
+```
+POST /api/v1/images/from-base64
+```
+
+---
+
+## 🎯 Social Media Optimizers
+
+### Twitter
+
+```
+POST /api/v1/optimize/twitter
+```
+
+### WhatsApp
+
+```
+POST /api/v1/optimize/whatsapp
+```
+
+### Instagram
+
+```
+POST /api/v1/optimize/instagram
+```
+
+### YouTube Thumbnail
+
+```
+POST /api/v1/optimize/youtube-thumbnail
+```
+
+### Web Optimization (WEBP output)
+
+```
+POST /api/v1/optimize/web
+```
+
+### SEO Responsive Package (ZIP output)
+
+```
+POST /api/v1/optimize/seo-responsive
+```
+
+### Custom Optimization
+
+```
+POST /api/v1/optimize/custom
+```
+
+Query Params:
+
+- `target_kb`
+- `quality`
+- `resize_percent`
+
+---
+
+## 🖼 Favicon Generator
+
+Generates a complete favicon package (ZIP):
+
+- favicon.ico
+- apple-touch-icon
+- android icons
+- manifest
+- Multiple sizes
+
+### Endpoint
+
+```
+POST /api/v1/images/favicon
+```
+
+Query Params:
+
+- `extension`
+- `background`
+- `padding`
+
+---
+
+## 🧹 SVG Optimizer
+
+Optimizes SVG files using Scour.
+
+- Removes metadata
+- Strips comments
+- Shortens IDs
+- Reduces precision
+
+### Endpoint
+
+```
+POST /api/v1/optimize-svg
+```
+
+---
+
+# 📈 Built-In Usage Tracking
+
+Every endpoint logs:
+
+- Action type
+- Endpoint
+- HTTP method
+- IP address
+- User agent
+- File size
+- Original format
+- Target format
+- Width / Height
+- Success / Failure
+- Status code
+- Error type
+- Error message
+- Processing time (ms)
+- Timestamp
+
+Stored in PostgreSQL (`usage_logs` table).
+
+---
+
+# 🛡 Security Features
+
+- File extension validation
+- File size limits
+- Image pixel limits
+- Decompression bomb protection
+- SVG safety validation
 - Rate limiting
-- Versioned API (`/api/v1`)
-- Health check endpoint
-- Environment-based configuration (`.env`)
-- Structured logging
-- Production-ready architecture
+- EXIF auto-orientation
+- Metadata stripping
 
 ---
 
-## 📦 Supported Formats
+# ⚙️ Environment Variables
 
-- jpeg
-- jpg
-- png
-- webp
-- bmp
-- tiff
-- gif
+Create `.env`:
 
----
-
-## 🛠 Installation
-
-### 1️⃣ Clone the repository
-
-```bash
-git clone <your-repo-url>
-cd image-processor
 ```
-
-### 2️⃣ Create virtual environment
-
-```bash
-python -m venv venv
-source venv/bin/activate   # macOS/Linux
-```
-
-### 3️⃣ Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## ⚙️ Environment Configuration
-
-Create a `.env` file in the root directory:
-
-```env
-MAX_FILE_SIZE=5242880
+DATABASE_URL=postgresql+asyncpg://user:password@host:5432/dbname?ssl=require
 RATE_LIMIT=10/minute
+MAX_FILE_SIZE=5242880
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 ```
 
-You can adjust:
+---
 
-- `MAX_FILE_SIZE` (in bytes)
-- `RATE_LIMIT`
-- `LOG_LEVEL`
+# 🗄 Database Setup
+
+## Run Migrations
+
+```
+alembic upgrade head
+```
+
+## Add New Enum Values
+
+When adding new tools:
+
+```
+alembic revision -m "add new action types"
+```
+
+Inside migration:
+
+```
+op.execute("ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'new_value';")
+```
+
+Then:
+
+```
+alembic upgrade head
+```
 
 ---
 
-## ▶️ Running the Application
+# 🚀 Running the Server
 
-### Development Mode
-
-```bash
+```
 uvicorn app.main:app --reload
 ```
 
-API will run at:
+---
+
+# 📊 Monitoring & Observability
+
+Because all actions are logged, you can:
+
+- Calculate tool popularity
+- Track failure rates
+- Monitor processing performance
+- Detect abuse patterns
+- Analyze user agents
+- Track daily usage growth
+
+---
+
+# 🧠 Architecture Philosophy
+
+- Thin routers
+- Controllers handle logging + orchestration
+- Services handle business logic
+- Async SQLAlchemy
+- Clean separation of concerns
+- Production-ready logging
+
+---
+
+# 📌 Example Request
 
 ```
-http://127.0.0.1:8000
-```
-
-Swagger documentation:
-
-```
-http://127.0.0.1:8000/docs
+curl -X POST \
+  -F "file=@image.jpg" \
+  "http://localhost:8000/api/v1/convert?target_format=webp"
 ```
 
 ---
 
-## 📡 API Endpoints
+# 📦 Response Types
 
-### 🔄 Convert Image
+Depending on endpoint:
 
-**POST** `/api/v1/convert`
-
-#### Query Parameters:
-
-- `target_format` (required)
-
-#### Form Data:
-
-- `file` (image file)
-
-#### Example using curl:
-
-```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/convert?target_format=png" \
-  -F "file=@sample.jpg" \
-  --output converted.png
-```
+- StreamingResponse (image/jpeg, image/webp, etc.)
+- JSON (analyzer, base64 tools)
+- ZIP archive (favicon, SEO responsive)
 
 ---
 
-### ❤️ Health Check
+# 🏁 Status
 
-**GET** `/health`
+This API is:
 
-Returns:
-
-```json
-{
-  "status": "healthy",
-  "service": "image-processor",
-  "version": "1.0.0"
-}
-```
+- Production-ready
+- Fully instrumented
+- Extensible
+- Secure
+- Scalable
 
 ---
 
-## 🛡 Validation & Protection
+# 👨‍💻 Author
 
-The API includes:
-
-- File size limits (configured via `.env`)
-- Allowed file type validation
-- Pixel dimension validation
-- Rate limiting per IP
-- Streaming responses (no disk storage)
-- Structured logging
-
----
-
-## 📂 Project Structure
-
-```
-app/
- ├── api/v1/
- ├── controllers/
- ├── services/
- ├── utils/
- ├── core/
- └── exceptions/
-```
-
-This follows a modular, scalable architecture.
-
----
-
-## 📊 Logging
-
-Logs are written to:
-
-```
-app.log
-```
-
-Logs include:
-
-- Incoming requests
-- Conversion activity
-- Validation failures
-- Errors
-
----
-
-## 🏭 Production Run
-
-For production:
-
-```bash
-gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 4
-```
-
----
-
-## 📌 Notes
-
-- Do not commit `.env`
-- Do not commit `venv`
-- Adjust file size limit carefully for memory safety
-- For heavy workloads, consider adding Redis + background workers
-
----
-
-## 📄 License
-
-MIT License
-
----
+Built with ❤️ using FastAPI + Supabase.
