@@ -17,7 +17,7 @@ def validate_file_extension(filename: str):
 def validate_file_extension(filename: str, allowed_extensions=None):
 
     if not allowed_extensions:
-        allowed_extensions = ["jpg", "jpeg", "png", "webp"]
+        allowed_extensions = ALLOWED_EXTENSIONS
 
     ext = filename.split(".")[-1].lower()
 
