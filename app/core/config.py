@@ -11,8 +11,8 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Expanded allowed extensions for validation
 ALLOWED_EXTENSIONS = {
-    "jpeg", "jpg", "png", "webp", "bmp", "tiff", "tif", 
-    "gif", "ico", "heic", "heif", "avif"
+    "jpeg", "jpg", "png", "webp", "bmp", "tiff", "tif",
+    "gif", "ico", "avif"
 }
 
 MAX_IMAGE_PIXELS = 20_000_000
