@@ -5,9 +5,9 @@ from app.core.limiter import limiter
 from app.core.config import RATE_LIMIT
 from app.controllers.analyzer_controller import analyze_controller
 
-router = APIRouter(prefix="/analyze")
+router = APIRouter()
 
-@router.post("/")
+@router.post("/analyze")
 @limiter.limit(RATE_LIMIT)
 async def analyze_image(
     request: Request,
