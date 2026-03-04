@@ -1,0 +1,38 @@
+__pycache__
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.env
+venv
+node_modules
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Database
+*.db
+*.sqlite3
+
+# Alembic cache
+migrations/__pycache__/

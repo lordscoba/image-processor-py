@@ -30,7 +30,7 @@ async def analyze_controller(
 
         basic_info = result.get("basic_info", {})
 
-        # ✅ Log Success
+        # # ✅ Log Success
         await log_action(
             db=db,
             action_type=ActionType.ANALYZE,
