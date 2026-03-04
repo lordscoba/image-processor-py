@@ -3,7 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 5242880))
+# MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 10485760))
+MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 50MB
 RATE_LIMIT = os.getenv("RATE_LIMIT", "10/minute")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
