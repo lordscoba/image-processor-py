@@ -1,7 +1,7 @@
 from fastapi import UploadFile, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.sticker_service import video_to_sticker_service, image_to_sticker_service
+from app.services.sticker_service import image_to_sticker_service, video_to_sticker_service
 from app.utils.file_validators import validate_file_extension, validate_file_size
 from app.services.log_service import log_action
 from app.enums.action_type import ActionType
@@ -11,6 +11,10 @@ from app.core.logging import logger
 async def video_to_sticker_controller(
     file: UploadFile,
     fps: int,
+    start_time: float,
+    end_time: float,
+    quality: str,
+    reverse: bool,
     request: Request,
     db: AsyncSession,
 ):
@@ -27,7 +31,11 @@ async def video_to_sticker_controller(
 
         result_data = await video_to_sticker_service(
             file=file,
-            fps=fps
+            fps=fps,
+            start_time=start_time,
+            end_time=end_time,
+            quality=quality,
+            reverse=reverse
         )
 
         logger.info("Video converted to sticker successfully")
@@ -80,7 +88,6 @@ async def video_to_sticker_controller(
             status_code=500,
             detail="Video to sticker conversion failed."
         )
-
 
 async def image_to_sticker_controller(
     file: UploadFile,

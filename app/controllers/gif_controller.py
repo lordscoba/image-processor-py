@@ -12,6 +12,10 @@ async def video_to_gif_controller(
     file: UploadFile,
     fps: int,
     width: int,
+    start_time: float,
+    end_time: float,
+    quality: str,
+    reverse: bool,
     request: Request,
     db: AsyncSession,
 ):
@@ -32,10 +36,20 @@ async def video_to_gif_controller(
                 detail="Maximum GIF width is 600px"
             )
 
+        if start_time < 0 or end_time <= start_time:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid trim range."
+            )
+
         result_data = await video_to_gif_service(
             file=file,
             fps=fps,
-            width=width
+            width=width,
+            start_time=start_time,
+            end_time=end_time,
+            quality=quality,
+            reverse=reverse
         )
 
         logger.info("Video converted to GIF successfully")
