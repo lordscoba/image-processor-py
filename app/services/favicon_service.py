@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 from PIL import Image, ImageOps
 from app.utils.image_validators import validate_image_safety
+from app.utils.profiler import profile_performance
 
 # Decompression bomb guard (50MP limit)
 Image.MAX_IMAGE_PIXELS = 50_000_000
@@ -160,7 +161,7 @@ def _build_zip(canvas, image, extension, padding, background, brand_color):
 # ------------------------------------------------
 # Main Service
 # ------------------------------------------------
-
+@profile_performance
 async def generate_favicon_service(file, extension, background, padding):
 
     if extension.lower() not in ALLOWED_OUTPUT_EXT:

@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
 from app.core.logging import logger
+from app.utils.profiler import profile_performance
 
 register_heif_opener()
 
@@ -106,7 +107,7 @@ def _sync_heic_to_compressed_image(file_bytes: bytes, target_format: str, compre
         logger.error(f"Sync HEIC Compression Error: {str(e)}")
         raise e
 
-
+@profile_performance
 async def heic_to_image_service(file, target_format: str, compression: str = "high"):
     try:
         await file.seek(0)
@@ -171,7 +172,7 @@ def _sync_image_to_heic(image_bytes: bytes, quality: int):
     except Exception as e:
         logger.error(f"Sync HEIC Encoding Error: {str(e)}")
         raise e
-
+@profile_performance
 async def image_to_heic_service(file, quality: int):
     try:
         # Safe Byte Extraction

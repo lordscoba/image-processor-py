@@ -1,45 +1,39 @@
 import io
 import os
 import tempfile
+import asyncio
 import time
-import subprocess
+
 from PIL import Image
-from fastapi.responses import StreamingResponse
-from starlette.concurrency import run_in_threadpool
-from fastapi import HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import HTTPException, BackgroundTasks
 from app.core.logging import logger
+from app.utils.profiler import profile_performance
+from starlette.concurrency import run_in_threadpool
 
-
+# ─────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────
 MAX_DURATION = 15
 MAX_WIDTH = 600
 MAX_FPS = 15
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
 
 TARGET_SIZE = 1 * 1024 * 1024  # 1MB
 
+FFMPEG_SEMAPHORE = asyncio.Semaphore(2)
 
 QUALITY_PRESETS = {
-    "hd": [
-        (15, 600, 256),
-        (12, 600, 256),
-        (10, 600, 128)
-    ],
-    "high": [
-        (12, 600, 256),
-        (10, 600, 128)
-    ],
-    "medium": [
-        (10, 480, 128),
-        (8, 420, 96)
-    ],
-    "low": [
-        (6, 360, 96),
-        (5, 320, 64)
-    ]
+    "hd": [(15, 600, 256), (12, 600, 256), (10, 600, 128)],
+    "high": [(12, 600, 256), (10, 600, 128)],
+    "medium": [(10, 480, 128), (8, 420, 96)],
+    "low": [(6, 360, 96), (5, 320, 64)]
 }
 
-
-def run_ffmpeg(input_path, output_path, fps, width, colors, start_time, duration, reverse):
-
+# ─────────────────────────────────────────────
+# ASYNC FFMPEG
+# ─────────────────────────────────────────────
+async def run_ffmpeg_async(input_path, output_path, fps, width, colors, start_time, duration, reverse):
     filters = f"fps={fps},scale={width}:-1:flags=lanczos"
 
     if reverse:
@@ -63,117 +57,114 @@ def run_ffmpeg(input_path, output_path, fps, width, colors, start_time, duration
         output_path
     ]
 
-    subprocess.run(
-        command,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        check=True
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE
     )
 
+    _, stderr = await process.communicate()
 
-def adaptive_gif_encode(input_path, start_time, duration, quality, reverse):
+    if process.returncode != 0:
+        raise Exception(f"FFmpeg failed: {stderr.decode()}")
 
+
+# ─────────────────────────────────────────────
+# ADAPTIVE ENCODER
+# ─────────────────────────────────────────────
+async def adaptive_gif_encode_async(input_path, start_time, duration, quality, reverse, file_size):
     attempts = QUALITY_PRESETS.get(quality, QUALITY_PRESETS["medium"])
+
+    # Reduce quality attempts for large files
+    if file_size > 5 * 1024 * 1024:
+        attempts = QUALITY_PRESETS["low"]
+    elif file_size > 2 * 1024 * 1024:
+        attempts = QUALITY_PRESETS["medium"]
+
+    # Avoid multiple passes for short clips
+    if duration < 2:
+        attempts = attempts[:1]
 
     best_output = None
     best_size = float("inf")
 
     for fps, width, colors in attempts:
-
         fd, output_path = tempfile.mkstemp(suffix=".gif")
         os.close(fd)
 
-        run_ffmpeg(
-            input_path,
-            output_path,
-            fps,
-            width,
-            colors,
-            start_time,
-            duration,
-            reverse
-        )
+        try:
+            await run_ffmpeg_async(
+                input_path,
+                output_path,
+                fps,
+                width,
+                colors,
+                start_time,
+                duration,
+                reverse
+            )
 
-        size = os.path.getsize(output_path)
+            size = os.path.getsize(output_path)
 
-        if size < best_size:
+            if size < best_size:
+                if best_output and os.path.exists(best_output):
+                    os.remove(best_output)
 
-            if best_output and os.path.exists(best_output):
-                os.remove(best_output)
+                best_output = output_path
+                best_size = size
+            else:
+                os.remove(output_path)
 
-            best_output = output_path
-            best_size = size
+            if size <= TARGET_SIZE:
+                logger.info(f"Target GIF size reached: {size}")
+                return best_output
 
-        else:
-            os.remove(output_path)
-
-        if size <= TARGET_SIZE:
-
-            logger.info(f"Target GIF size reached: {size} bytes")
-
-            return best_output
-
-    logger.warning(
-        f"Target size not reached. Returning best result ({best_size} bytes)."
-    )
+        except Exception as e:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            raise e
 
     return best_output
 
 
-def _sync_video_to_gif(
-    video_bytes: bytes,
-    fps: int,
-    width: int,
-    start_time: float,
-    end_time: float,
-    quality: str,
-    reverse: bool
+# ─────────────────────────────────────────────
+# VIDEO → GIF
+# ─────────────────────────────────────────────
+async def process_video_to_gif_async(
+    input_path,
+    file_size,
+    fps,
+    width,
+    start_time,
+    end_time,
+    quality,
+    reverse
 ):
+    start = time.perf_counter()
 
-    start_process_time = time.perf_counter()
+    fps = min(fps, MAX_FPS)
+    width = min(width, MAX_WIDTH)
 
-    input_path = None
-    output_path = None
+    duration = min(end_time - start_time, MAX_DURATION)
 
-    try:
+    if duration <= 0:
+        raise Exception("Invalid duration")
 
-        fps = min(fps, MAX_FPS)
-        width = min(width, MAX_WIDTH)
+    output_path = await adaptive_gif_encode_async(
+        input_path,
+        start_time,
+        duration,
+        quality,
+        reverse,
+        file_size
+    )
 
-        duration = min(end_time - start_time, MAX_DURATION)
+    processing_time = int((time.perf_counter() - start) * 1000)
 
-        if duration <= 0:
-            raise Exception("Invalid trim duration")
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-            tmp.write(video_bytes)
-            input_path = tmp.name
-
-        output_path = adaptive_gif_encode(
-            input_path,
-            start_time,
-            duration,
-            quality,
-            reverse
-        )
-
-        gif_file = open(output_path, "rb")
-
-        processing_time_ms = int((time.perf_counter() - start_process_time) * 1000)
-
-        return gif_file, len(video_bytes), processing_time_ms
-
-    except Exception as e:
-
-        logger.error(f"Video → GIF conversion failed: {str(e)}")
-        raise
-
-    finally:
-
-        if input_path and os.path.exists(input_path):
-            os.remove(input_path)
+    return output_path, file_size, processing_time
 
 
+@profile_performance
 async def video_to_gif_service(
     file,
     fps: int,
@@ -183,68 +174,95 @@ async def video_to_gif_service(
     quality: str,
     reverse: bool
 ):
+    input_path = None
+    output_path = None
 
     try:
-
         await file.seek(0)
-        video_bytes = await file.read()
+        file_size = 0
 
-        gif_file, original_size, processing_time_ms = await run_in_threadpool(
-            _sync_video_to_gif,
-            video_bytes,
-            fps,
-            width,
-            start_time,
-            end_time,
-            quality,
-            reverse
-        )
+        # STREAM FILE (NO MEMORY LOAD)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            while chunk := await file.read(1024 * 1024):
+                file_size += len(chunk)
 
-        filename = file.filename.rsplit(".", 1)[0]
+                if file_size > MAX_FILE_SIZE:
+                    os.remove(tmp.name)
+                    raise HTTPException(status_code=400, detail="File too large")
+
+                tmp.write(chunk)
+
+            input_path = tmp.name
+
+        async with FFMPEG_SEMAPHORE:
+            output_path, original_size, processing_time_ms = await process_video_to_gif_async(
+                input_path,
+                file_size,
+                fps,
+                width,
+                start_time,
+                end_time,
+                quality,
+                reverse
+            )
+
+        filename = os.path.splitext(file.filename)[0]
+
+        def cleanup():
+            if output_path and os.path.exists(output_path):
+                os.remove(output_path)
+
+        bg = BackgroundTasks()
+        bg.add_task(cleanup)
 
         return {
-            "response": StreamingResponse(
-                gif_file,
+            "response": FileResponse(
+                path=output_path,
                 media_type="image/gif",
-                headers={
-                    "Content-Disposition": f"attachment; filename={filename}.gif"
-                }
+                filename=f"{filename}.gif",
+                background=bg
             ),
             "original_size": original_size,
             "processing_time_ms": processing_time_ms
         }
 
     except Exception as e:
+        logger.error(f"Video → GIF error: {e}")
 
-        logger.error(f"Video to GIF service error: {str(e)}")
+        if output_path and os.path.exists(output_path):
+            os.remove(output_path)
 
-        raise HTTPException(
-            status_code=500,
-            detail="Error converting video to GIF"
-        )
-    
-def _sync_image_to_gif(image_bytes: bytes, duration: int):
+        raise HTTPException(status_code=500, detail="GIF conversion failed")
 
-    start_time = time.perf_counter()
+    finally:
+        if input_path and os.path.exists(input_path):
+            os.remove(input_path)
+
+
+# ─────────────────────────────────────────────
+# IMAGE → GIF
+# ─────────────────────────────────────────────
+def _sync_image_to_gif(file_obj, file_size, duration):
+    start = time.perf_counter()
 
     try:
-        img = Image.open(io.BytesIO(image_bytes))
+        file_obj.seek(0)
+
+        img = Image.open(file_obj)
 
         frames = []
 
         if getattr(img, "is_animated", False):
-
-            for frame in range(img.n_frames):
-                img.seek(frame)
+            for i in range(img.n_frames):
+                img.seek(i)
                 frames.append(img.copy())
-
         else:
             frames = [img]
 
-        output_buffer = io.BytesIO()
+        output = io.BytesIO()
 
         frames[0].save(
-            output_buffer,
+            output,
             format="GIF",
             save_all=True,
             append_images=frames[1:],
@@ -252,41 +270,47 @@ def _sync_image_to_gif(image_bytes: bytes, duration: int):
             loop=0
         )
 
-        output_buffer.seek(0)
+        output.seek(0)
 
-        processing_time_ms = int((time.perf_counter() - start_time) * 1000)
-
-        return output_buffer, len(image_bytes), processing_time_ms
+        return output, file_size, int((time.perf_counter() - start) * 1000)
 
     except Exception as e:
-        logger.error(f"Image to GIF sync error: {str(e)}")
+        logger.error(f"Image → GIF sync error: {e}")
         raise e
 
 
+@profile_performance
 async def image_to_gif_service(file, duration: int):
-
     try:
         await file.seek(0)
-        image_bytes = await file.read()
 
-        output_buffer, original_size, processing_time_ms = await run_in_threadpool(
+        content = await file.read()
+        file_size = len(content)
+
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail="Image too large")
+
+        output, size, time_ms = await run_in_threadpool(
             _sync_image_to_gif,
-            image_bytes,
+            file.file,
+            file_size,
             duration
         )
 
+        filename = os.path.splitext(file.filename)[0]
+
         return {
             "response": StreamingResponse(
-                output_buffer,
+                output,
                 media_type="image/gif",
                 headers={
-                    "Content-Disposition": f"attachment; filename={file.filename.split('.')[0]}.gif"
+                    "Content-Disposition": f'attachment; filename="{filename}.gif"'
                 }
             ),
-            "original_size": original_size,
-            "processing_time_ms": processing_time_ms
+            "original_size": size,
+            "processing_time_ms": time_ms
         }
 
     except Exception as e:
-        logger.error(f"Image to GIF wrapper error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error converting image to GIF")
+        logger.error(f"Image → GIF error: {e}")
+        raise HTTPException(status_code=500, detail="GIF conversion failed")

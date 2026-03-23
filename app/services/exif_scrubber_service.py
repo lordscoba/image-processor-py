@@ -9,7 +9,6 @@ from app.core.logging import logger
 
 register_heif_opener()
 
-
 def _strip_exif(img: Image.Image) -> Image.Image:
     """Remove EXIF metadata safely."""
     data = list(img.getdata())
