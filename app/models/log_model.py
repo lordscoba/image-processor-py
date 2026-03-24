@@ -18,6 +18,7 @@ class UsageLog(Base):
     ip_address = Column(String(45), nullable=True)  # IPv6 safe
     user_agent = Column(String(500), nullable=True)
     request_id = Column(String(100), nullable=True, index=True)
+    country = Column(String(40), nullable=True)
 
     # File metadata
     file_size = Column(Integer, nullable=True)
