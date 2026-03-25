@@ -1,8 +1,7 @@
 from app.models.log_model import UsageLog
 from app.utils.log_data import get_country_from_ip, get_real_ip
-from app.utils.profiler import profile_performance
 
-@profile_performance
+# @profile_performance
 async def log_action(
     db,
     action_type,
