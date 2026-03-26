@@ -31,33 +31,33 @@ async def heic_to_image_controller(
 
         logger.info("HEIC converted successfully")
 
-        # await log_action(
-        #     db=db,
-        #     action_type=ActionType.HEIC_TO_IMAGE,
-        #     request=request,
-        #     success=True,
-        #     status_code=200,
-        #     file_size=result_data["original_size"],
-        #     original_format=file.filename.split(".")[-1].lower(),
-        #     target_format=format.lower(),
-        #     width=None,
-        #     height=None,
-        #     processing_time_ms=result_data["processing_time_ms"],
-        # )
+        await log_action(
+            db=db,
+            action_type=ActionType.HEIC_TO_IMAGE,
+            request=request,
+            success=True,
+            status_code=200,
+            file_size=result_data["original_size"],
+            original_format=file.filename.split(".")[-1].lower(),
+            target_format=format.lower(),
+            width=None,
+            height=None,
+            processing_time_ms=result_data["processing_time_ms"],
+        )
 
         return result_data["response"]
 
     except HTTPException as e:
 
-        # await log_action(
-        #     db=db,
-        #     action_type=ActionType.HEIC_TO_IMAGE,
-        #     request=request,
-        #     success=False,
-        #     status_code=e.status_code,
-        #     error_type="http_exception",
-        #     error_message=str(e.detail),
-        # )
+        await log_action(
+            db=db,
+            action_type=ActionType.HEIC_TO_IMAGE,
+            request=request,
+            success=False,
+            status_code=e.status_code,
+            error_type="http_exception",
+            error_message=str(e.detail),
+        )
 
         raise e
 
@@ -65,15 +65,15 @@ async def heic_to_image_controller(
 
         logger.error(f"HEIC to image error: {str(e)}")
 
-        # await log_action(
-        #     db=db,
-        #     action_type=ActionType.HEIC_TO_IMAGE,
-        #     request=request,
-        #     success=False,
-        #     status_code=500,
-        #     error_type="internal_error",
-        #     error_message=str(e),
-        # )
+        await log_action(
+            db=db,
+            action_type=ActionType.HEIC_TO_IMAGE,
+            request=request,
+            success=False,
+            status_code=500,
+            error_type="internal_error",
+            error_message=str(e),
+        )
 
         raise HTTPException(
             status_code=500,
@@ -105,33 +105,33 @@ async def image_to_heic_controller(
 
         logger.info("Image converted to HEIC successfully")
 
-        # await log_action(
-        #     db=db,
-        #     action_type=ActionType.IMAGE_TO_HEIC,
-        #     request=request,
-        #     success=True,
-        #     status_code=200,
-        #     file_size=result_data["original_size"],
-        #     original_format=file.filename.split(".")[-1].lower(),
-        #     target_format="heic",
-        #     width=None,
-        #     height=None,
-        #     processing_time_ms=result_data["processing_time_ms"],
-        # )
+        await log_action(
+            db=db,
+            action_type=ActionType.IMAGE_TO_HEIC,
+            request=request,
+            success=True,
+            status_code=200,
+            file_size=result_data["original_size"],
+            original_format=file.filename.split(".")[-1].lower(),
+            target_format="heic",
+            width=None,
+            height=None,
+            processing_time_ms=result_data["processing_time_ms"],
+        )
 
         return result_data["response"]
 
     except HTTPException as e:
 
-        # await log_action(
-        #     db=db,
-        #     action_type=ActionType.IMAGE_TO_HEIC,
-        #     request=request,
-        #     success=False,
-        #     status_code=e.status_code,
-        #     error_type="http_exception",
-        #     error_message=str(e.detail),
-        # )
+        await log_action(
+            db=db,
+            action_type=ActionType.IMAGE_TO_HEIC,
+            request=request,
+            success=False,
+            status_code=e.status_code,
+            error_type="http_exception",
+            error_message=str(e.detail),
+        )
 
         raise e
 
@@ -139,15 +139,15 @@ async def image_to_heic_controller(
 
         logger.error(f"Image to HEIC error: {str(e)}")
 
-        # await log_action(
-        #     db=db,
-        #     action_type=ActionType.IMAGE_TO_HEIC,
-        #     request=request,
-        #     success=False,
-        #     status_code=500,
-        #     error_type="internal_error",
-        #     error_message=str(e),
-        # )
+        await log_action(
+            db=db,
+            action_type=ActionType.IMAGE_TO_HEIC,
+            request=request,
+            success=False,
+            status_code=500,
+            error_type="internal_error",
+            error_message=str(e),
+        )
 
         raise HTTPException(
             status_code=500,
